@@ -29,7 +29,7 @@ Create a `causelybot-values.yaml` file with your configuration. Use the example 
 
 - `<YOUR_CAUSELYBOT_TOKEN>` [Required] Define your CauselyBot token here. This will be referenced in the Causely configuration `causely-values.yaml`
 - `<FRIENDLY_WEBHOOK_NAME>` [Required] Unique name for your webhook
-- `<YOUR_WEBHOOK_TYPE>` [Required] Set to one of the following: `slack`, `teams`, `jira`, `opsgenie`, `debug`
+- `<YOUR_WEBHOOK_TYPE>` [Required] Set to one of the following: `slack`, `teams`, `jira`, `opsgenie`, `debug`, `template`
 - `<YOUR_WEBHOOK_URL>` [Required] The URL of your webhook endpoint
 - `<YOUR_WEBHOOK_TOKEN>` [Optional] If required by your webhook, provide a token
 
@@ -39,7 +39,7 @@ auth:
 
 webhooks:
   - name: "<FRIENDLY_WEBHOOK_NAME>" # Required
-    hook_type: "<YOUR_WEBHOOK_TYPE>" # Required [slack, teams, jira, opsgenie, debug]
+    hook_type: "<YOUR_WEBHOOK_TYPE>" # Required [slack, teams, jira, opsgenie, debug, template]
     url: "<YOUR_WEBHOOK_URL>" # Required
     token: "<YOUR_WEBHOOK_TOKEN>" # Optional
     filters: # Optional - see Filtering Notifications
@@ -57,6 +57,40 @@ notifications:
     token: "your-secret-token"
     enabled: true
 ```
+
+### Template-driven webhook
+
+Use `hook_type: "template"` to map the Causely payload to any backend via a **Jinja2 template**. You can point to fields exactly, transform JSON (e.g. build a list from `slos`), or include parts of the payload. No need to add a new backend module.
+
+Templates use **`[[` and `]]`** as delimiters by default so they work in Helm values without escaping. In the body you can: use `[[ name ]]` or `[[ entity.name ]]` for exact fields; define a Jinja2 map to convert values (e.g. Causely severity → your priority); use `[[ entity | tojson ]]` to embed JSON; use a `{% for %}` loop to build a list (e.g. SLO names). The webhook **token** is available in the context (e.g. for custom headers); use the **`b64encode`** filter to base64-encode it for Basic/Bearer-style auth. Header values can be templates too.
+
+```yaml
+webhooks:
+  - name: "my-backend"
+    hook_type: "template"
+    url: "https://your-api.example.com/alerts"
+    token: ""   # optional; available as [[ token ]] and [[ token | b64encode ]] in templates
+    filters:
+      enabled: true
+      values: []
+    template:
+      content_type: "application/json"
+      headers:
+        X-Request-Id: "[[ name ]]-[[ objectId ]]"
+        Authorization: "Basic [[ token | b64encode ]]"
+      body: |
+        {% set priority = {"Critical":"P1","High":"P2","Medium":"P3","Low":"P4"} %}
+        {
+          "title": "[[ name ]]",
+          "priority": "[[ priority.get(severity, 'P4') ]]",
+          "entity": [[ entity | tojson ]],
+          "slo_names": [{% for s in slos %}"[[ s.slo_entity.name ]]"{% if not loop.last %}, {% endif %}{% endfor %}]
+        }
+```
+
+Template config: **body** (required), **method** (default `POST`; one of GET, POST, PUT, PATCH, DELETE), **content_type** (default `application/json`), **headers** (optional; values can be templates), **delimiters** (default `["[[", "]]"]`). Context includes `payload`, every top-level key (`name`, `severity`, `entity`, `slos`, etc.), and **token** (webhook token). If you set custom `headers` with `Authorization`, it overrides the default `Bearer <token>`; use `[[ token | b64encode ]]` for Basic auth. Ready-to-use webhook snippets (generic, HolmesGPT, Linear, n8n) are in the [templates/](templates/) folder; copy a block under `webhooks:` in your config.
+
+### GitHub webhook
 
 For GitHub, causelybot expects a webhook where `url` is the repo as `owner/repo` and `token` is a GitHub token (repo + issues scope). Optional: `assignee` (e.g. `copilot-swe-agent`).
 

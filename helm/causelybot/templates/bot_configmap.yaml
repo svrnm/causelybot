@@ -30,4 +30,19 @@ data:
             {{ toYaml .filters.values | nindent 12 }}
           {{ else }} []
           {{ end }}
+        {{- if hasKey . "template" }}
+        template:
+          body: |
+{{ .template.body | indent 12 }}
+          method: {{ .template.method | default "POST" | quote }}
+          content_type: {{ .template.content_type | default "application/json" | quote }}
+        {{- if and (hasKey .template "headers") .template.headers }}
+          headers:
+{{ toYaml .template.headers | indent 12 }}
+        {{- end }}
+        {{- if and (hasKey .template "delimiters") .template.delimiters }}
+          delimiters:
+{{ toYaml .template.delimiters | indent 12 }}
+        {{- end }}
+        {{- end }}
       {{- end }}

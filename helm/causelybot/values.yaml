@@ -26,7 +26,7 @@ auth:
 
 webhooks:
   - name: "<FRIENDLY_WEBHOOK_NAME>" # Required
-    hook_type: "<YOUR_WEBHOOK_TYPE>" # Required [slack, teams, jira, opsgenie, github]
+    hook_type: "<YOUR_WEBHOOK_TYPE>" # Required [slack, teams, jira, opsgenie, github, template]
     url: "<YOUR_WEBHOOK_URL>" # Required (for github use "owner/repo")
     token: "<YOUR_WEBHOOK_TOKEN>" # Optional (required for github: PAT with repo + issues scope)
     # assignee: "" # Optional; for GitHub use e.g. "copilot-swe-agent" to assign issues
@@ -45,3 +45,20 @@ webhooks:
   #   filters:
   #     enabled: true
   #     values: []
+  # Example template webhook: map Causely payload to any backend via Jinja2 (delimiters [[ ]] avoid Helm conflicts)
+  # - name: "my-backend"
+  #   hook_type: "template"
+  #   url: "https://your-api.example.com/alerts"
+  #   token: "" # optional
+  #   filters:
+  #     enabled: true
+  #     values: []
+  #   template:
+  #     content_type: "application/json"
+  #     body: |
+  #       {
+  #         "title": "[[ name ]]",
+  #         "priority": "[[ severity ]]",
+  #         "entity": [[ entity | tojson ]],
+  #         "slo_names": [{% for s in slos %}"[[ s.slo_entity.name ]]"{% if not loop.last %}, {% endif %}{% endfor %}]
+  #       }

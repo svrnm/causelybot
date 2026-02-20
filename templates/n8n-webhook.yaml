@@ -1,0 +1,23 @@
+# Copy this block under webhooks: in your causelybot config. Set url to your n8n Webhook node URL (POST, JSON).
+- name: "n8n"
+  hook_type: "template"
+  url: "https://<N8N-URL>/webhook/<path>"
+  token: ""
+  filters:
+    enabled: true
+    values: []
+  template:
+    content_type: "application/json"
+    body: |
+      {
+        "eventType": "[[ type ]]",
+        "title": "[[ name ]]",
+        "severity": "[[ severity ]]",
+        "timestamp": "[[ timestamp ]]",
+        "link": "[[ link | default('') ]]",
+        "objectId": "[[ objectId | default('') ]]",
+        "summary": "[[ description.summary | default('') ]]",
+        "entity": [[ entity | tojson ]],
+        "labels": [[ labels | default({}) | tojson ]],
+        "slo_names": [{% for s in slos %}"[[ s.slo_entity.name ]]"{% if not loop.last %}, {% endif %}{% endfor %}]
+      }

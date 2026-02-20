@@ -15,6 +15,7 @@ os.environ["URL_TEAMS-TEST"] = "http://test_teams"
 os.environ["URL_JIRA-TEST"] = "http://test_jira"
 os.environ["URL_OPSGENIE-TEST"] = "http://test_opsgenie"
 os.environ["URL_GITHUB-TEST"] = "test_owner/test_repo"
+os.environ["URL_TEMPLATE-TEST"] = "http://test_template"
 
 # Multi-webhook config (existing slack-only) for filter/scenario tests
 os.environ["URL_SLACK-SEVERITY"] = "http://test_slack"
@@ -486,6 +487,35 @@ def test_webhook_no_matching_webhooks(mock_post):
     assert resp.status_code == 200
     assert b"No matching webhooks" in resp.data
     assert mock_post.call_count == 0
+
+
+@patch("causely_notification.template.requests.request")
+def test_webhook_template_renders_and_posts(mock_request):
+    """Template webhook renders Jinja2 body and POSTs to URL."""
+    mock_request.return_value = Mock(status_code=200, content=b"ok")
+    yaml_str = textwrap.dedent("""
+        webhooks:
+          - name: "template-test"
+            hook_type: "template"
+            url: "https://example.com/template"
+            filters:
+              enabled: false
+            template:
+              content_type: "application/json"
+              body: '{"title": "[[ name ]]", "priority": "[[ severity ]]"}'
+        """)
+    _setup_webhooks(yaml_str)
+    client = app.test_client()
+    resp = client.post(
+        "/webhook", json=test_payload, headers={"Authorization": "Bearer test-token"}
+    )
+    assert resp.status_code == 200
+    assert mock_request.call_count == 1
+    assert mock_request.call_args[0][0] == "POST"
+    assert mock_request.call_args[0][1] == "http://test_template"
+    body = mock_request.call_args[1]["data"]
+    assert body == '{"title": "Malfunction", "priority": "High"}'
+    assert mock_request.call_args[1]["headers"]["Content-Type"] == "application/json"
 
 
 @patch("requests.post")

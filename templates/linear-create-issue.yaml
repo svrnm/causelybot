@@ -1,0 +1,26 @@
+# Copy this block under webhooks: in your causelybot config.
+# Replace YOUR_LINEAR_TEAM_ID with your Linear team ID (Settings > Teams > copy team ID).
+# Set token to your Linear API key (Settings > API) for Bearer auth.
+# API: https://api.linear.app/graphql (POST). See https://developers.linear.app/docs/graphql/working-with-the-graphql-api
+- name: "linear"
+  hook_type: "template"
+  url: "https://api.linear.app/graphql"
+  token: ""
+  filters:
+    enabled: true
+    values: []
+  template:
+    content_type: "application/json"
+    body: |
+      {% set linear_priority = {"Critical": 1, "High": 2, "Medium": 3, "Low": 4} %}
+      {
+        "query": "mutation IssueCreate($input: IssueCreateInput!) { issueCreate(input: $input) { success issue { id identifier title url } } }",
+        "variables": {
+          "input": {
+            "teamId": "YOUR_LINEAR_TEAM_ID",
+            "title": "[[ name ]]",
+            "description": [[ ((description.get('summary', '') if description else '') + '\n\nCausely link: ' + (link | default(''))) | tojson ]],
+            "priority": [[ linear_priority.get(severity, 0) ]]
+          }
+        }
+      }

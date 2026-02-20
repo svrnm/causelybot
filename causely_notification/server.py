@@ -35,6 +35,7 @@ from causely_notification.slack import forward_to_slack
 from causely_notification.teams import forward_to_teams
 from causely_notification.opsgenie import forward_to_opsgenie
 from causely_notification.debug import forward_to_debug
+from causely_notification.template import forward_to_template
 
 app = Flask(__name__)
 
@@ -104,6 +105,11 @@ def webhook_routing():
                     response = forward_to_github(payload, hook_url, hook_token, assignee=hook_assignee)
                 case "debug":
                     response = forward_to_debug(payload, hook_url, hook_token)
+                case "template":
+                    template_config = webhook_lookup_map[name].get("template") or {}
+                    response = forward_to_template(
+                        payload, hook_url, hook_token, template_config
+                    )
                 case _:
                     failed_forwards.append(f"Unknown hook type: {hook_type}")
                     continue
@@ -168,13 +174,16 @@ def populate_webhooks(webhooks):
         assignee_env_var = f"ASSIGNEE_{normalized_name}"
         assignee = os.getenv(assignee_env_var)
 
-        # Store the webhook URL, token, hook type, and optional assignee in the lookup map
-        webhook_lookup_map[webhook_name] = {
+        # Store the webhook URL, token, hook type, optional assignee, and template config in the lookup map
+        entry = {
             'url': url,
             'token': token,
             'hook_type': webhook_type,
             'assignee': assignee,
         }
+        if webhook_type.lower() == 'template':
+            entry['template'] = webhook.get('template') or {}
+        webhook_lookup_map[webhook_name] = entry
 
         # Extract and add filters for the webhook (if enabled)
         filters = webhook.get("filters", {})

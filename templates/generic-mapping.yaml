@@ -1,0 +1,21 @@
+# Copy this block under webhooks: in your causelybot config. Set url and optional token.
+- name: "my-backend"
+  hook_type: "template"
+  url: "https://your-api.example.com/alerts"
+  token: ""
+  filters:
+    enabled: true
+    values: []
+  template:
+    content_type: "application/json"
+    headers:
+      X-Request-Id: "[[ name ]]-[[ objectId ]]"
+      Authorization: "Basic [[ token | b64encode ]]"
+    body: |
+      {% set priority = {"Critical":"P1","High":"P2","Medium":"P3","Low":"P4"} %}
+      {
+        "title": "[[ name ]]",
+        "priority": "[[ priority.get(severity, 'P4') ]]",
+        "entity": [[ entity | tojson ]],
+        "slo_names": [{% for s in slos %}"[[ s.slo_entity.name ]]"{% if not loop.last %}, {% endif %}{% endfor %}]
+      }

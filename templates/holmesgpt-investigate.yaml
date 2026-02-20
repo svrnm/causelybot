@@ -1,0 +1,25 @@
+# Copy this block under webhooks: in your causelybot config. Replace <HOLMES-URL> with your HolmesGPT base URL.
+# Add "model": "your-model-key" to the body if you use a named model from your HolmesGPT modelList.
+- name: "holmesgpt"
+  hook_type: "template"
+  url: "https://<HOLMES-URL>/api/investigate"
+  token: ""
+  filters:
+    enabled: true
+    values: []
+  template:
+    content_type: "application/json"
+    body: |
+      {
+        "source": "causely",
+        "title": "[[ name ]]",
+        "description": "[[ description.summary | default('') ]]",
+        "subject": [[ entity | tojson ]],
+        "context": {
+          "severity": "[[ severity ]]",
+          "link": "[[ link | default('') ]]",
+          "objectId": "[[ objectId | default('') ]]",
+          "labels": [[ labels | default({}) | tojson ]]
+        },
+        "include_tool_calls": true
+      }
